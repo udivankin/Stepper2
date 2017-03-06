@@ -5,7 +5,7 @@
 
  #include <Stepper2.h>
 
- const int rpm = 20; // max rpm on 28BYJ-48
+ const int rpm = 15; // max rpm on 28BYJ-48 is ~15
  int pinOut[4] = { D1, D2, D5, D6 };
 
  Stepper2 myStepper(pinOut);
@@ -17,7 +17,11 @@
 
  void loop() {
    Serial.println("start");
-   myStepper.turn();
+   myStepper.setDirection(0); // clock-wise
+   myStepper.turn();          // one full turn
+   myStepper.stop();
+   myStepper.setDirection(1); // counter-clock-wise
+   myStepper.turn(3);         // three full turns
    myStepper.stop();
    delay(15 * 1000);
  }

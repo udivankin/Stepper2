@@ -23,10 +23,11 @@
 #include "Arduino.h"
 #include "Stepper2.h"
 
-const int microsInMinute = 60L * 1000L * 1000L;
+const int microsInSecond = 1000L * 1000L;
+const int microsInMinute = 60L * microsInSecond;
 
 // Maximum steps per second
-const int maxHz = 100;
+const int maxHz = 1000;
 
 // Approx steps count to make a full turn
 const int stepsPerFullTurn = 4096;
@@ -56,13 +57,12 @@ int allLows[4] = { LOW, LOW, LOW, LOW };
 Stepper2::Stepper2(int motorPin[4])
 {
   this->step_number = 0;    // which step the motor is on
-  this->direction = 0;      // motor direction
   this->last_step_time = 0; // time stamp in us of the last step taken
 
   // setup the pins on the microcontroller:
   for (int i = 0; i < 4; i++) {
     this->pin_matrix[i] = motorPin[i];
-    pinMode(this->pin_matrix[i], OUTPUT);
+    pinMode(motorPin[i], OUTPUT);
   }
 }
 
@@ -71,8 +71,17 @@ Stepper2::Stepper2(int motorPin[4])
  */
 void Stepper2::setSpeed(int rpm)
 {
-  int delay = microsInMinute / stepsPerFullTurn / rpm;
-  this->step_delay = delay > 1000 / maxHz ? delay : delay;
+  int duration = microsInMinute / stepsPerFullTurn / rpm;
+  int minDuration = microsInSecond / maxHz;
+  this->step_duration = duration > minDuration ? duration : minDuration;
+}
+
+/*
+ * Sets the speed in revs per minute
+ */
+void Stepper2::setDirection(int direction)
+{
+  this->direction = direction;
 }
 
 /*
@@ -85,46 +94,40 @@ void Stepper2::writeStep(int outArray[4]){
 }
 
 /*
- * Moves the motor steps_to_move steps.  If the number is negative,
- * the motor moves in the reverse direction.
+ * Moves the motor stepsToMove steps.
  */
 void Stepper2::step(int stepsToMove)
 {
   int stepsLeft = abs(stepsToMove);  // how many steps to take
 
-  // determine direction based on whether steps_to_mode is + or -:
-  if (stepsToMove > 0) { this->direction = 1; }
-  if (stepsToMove < 0) { this->direction = 0; }
+  // Adjust stepsToMove accrodign to direction
+  if (this->direction == 1) {
+     stepsToMove = -stepsToMove;
+  }
 
-  // decrement the number of steps, moving one step each time:
-  while (stepsLeft > 0)
-  {
+  // decrement the number of steps, moving one step each time
+  while (stepsLeft > 0) {
     unsigned long now = micros();
-    // move only if the appropriate delay has passed:
-    if (now - this->last_step_time >= this->step_delay)
-    {
-      // get the timeStamp of when you stepped:
+    // move only if the appropriate delay has passed
+    if (now - this->last_step_time >= this->step_duration) {
+      // get the timeStamp of when you stepped
       this->last_step_time = now;
       // increment or decrement the step number,
-      // depending on direction:
-      if (this->direction == 1)
-      {
+      // depending on direction
+      if (this->direction == 1) {
         this->step_number++;
         if (this->step_number == numberOfSteps) {
           this->step_number = 0;
         }
-      }
-      else
-      {
+      } else {
         if (this->step_number == 0) {
           this->step_number = numberOfSteps;
         }
         this->step_number--;
       }
-      // decrement the steps left:
+      // decrement the steps left
       stepsLeft--;
-      // step the motor to step number 0, 1, ..., {3 or 10}
-      int stepIndex = this->step_number % 8;
+      // step the motor to step number 0..8 according to step matrix
       writeStep(stepMatrix[this->step_number % 8]);
     }
   }
@@ -139,7 +142,7 @@ void Stepper2::stop()
 }
 
 /*
- * Stops the motor (otherwize it will draw between 100 and 200ma when stopped)
+ * Make one full turn
  */
 void Stepper2::turn()
 {
@@ -149,6 +152,16 @@ void Stepper2::turn()
     // ESP.wdtDisable();
     // ESP.wdtEnable(WDTO_8S);
     delay(1);
+  }
+}
+
+/*
+ * Make given amount of full turns
+ */
+void Stepper2::turn(int turnsCount)
+{
+  for (int i = 0; i < turnsCount; i++) {
+    turn();
   }
 }
 

@@ -27,17 +27,19 @@
 // library interface description
 class Stepper2 {
   public:
-    Stepper2(int motorPin[4]);       // constructors
+    Stepper2(int motorPin[4]);        // constructors
     void setSpeed(int rpm);           // speed setter method
+    void setDirection(int direction); // direction setter method
     void step(int numberOfSteps);     // step method
     void turn();                      // turn method
+    void turn(int turnsCount);        // turn method to given amount of turns
     void stop();                      // stop method
-    int version(void);                // version method
+    int version();                    // version method
 
   private:
     void writeStep(int outArray[4]);  // write step pin matrix to output
     int direction;                    // direction of rotation
-    unsigned long step_delay;         // delay between steps, in ms, based on speed
+    unsigned long step_duration;      // target step duration, in ms, based on speed
     int step_number;                  // which step the motor is on
     int pin_matrix[4];                // pin matrix array
     unsigned long last_step_time;     // time stamp in us of when the last step was taken
